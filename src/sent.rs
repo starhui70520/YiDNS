@@ -1,15 +1,12 @@
 use std::net::{UdpSocket, SocketAddrV4, Ipv4Addr};
-
+mod system;
 
 //------------- 构造SSDP消息 -------------
-
-
-
 pub fn build_ssdp_message(local_ip: &str, status: &str, groupid: &str) -> String {
     
     let usn_ip = local_ip.replace(".", "");
-    let os = "linux";
-    let os_version = "5.4.0";
+    let os = system::os_type();
+    let os_version = system::os_version();
     let upnp = "UPnP";
     let upnp_version = "1.0";
     let server_name = env!("CARGO_PKG_NAME");
@@ -38,41 +35,8 @@ pub fn ssdp_broadcast(message: &str) {
 
     if let Err(e) = socket.send_to(message.as_bytes(), multicast_addr) {
         eprintln!("SSDP 广播发送失败: {}", e);
-    } else {
-        println!("SSDP 广播已发送");
-    }
-}
+        return;
+    } 
 
-pub fn ssdp_listen(local_iface: &str) {
-    let bind_addr: SocketAddrV4 = "0.0.0.0:1900".parse().unwrap();
-    let socket = match UdpSocket::bind(bind_addr) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("监听 SSDP 绑定失败 {}: {}", bind_addr, e);
-            return;
-        }
-    };
-
-    let iface: Ipv4Addr = local_iface.parse().unwrap_or(Ipv4Addr::UNSPECIFIED);
-    if let Err(e) = socket.join_multicast_v4(&Ipv4Addr::new(239,255,255,250), &iface) {
-        eprintln!("加入 SSDP 组播失败: {}", e);
-        // 仍然继续尝试接收（某些平台不需要显式 join）
-    }
-
-    let mut buf = [0u8; 2048];
-    loop {
-        match socket.recv_from(&mut buf) {
-            Ok((n, src)) => {
-                if let Ok(s) = String::from_utf8(buf[..n].to_vec()) {
-                    println!("[SSDP recv from {}]\n{}", src, s);
-                } else {
-                    println!("[SSDP recv binary {} bytes from {}]", n, src);
-                }
-            }
-            Err(e) => {
-                eprintln!("接收 SSDP 数据错误: {}", e);
-                // 可根据需要决定是否 break
-            }
-        }
-    }
+    println!("SSDP 广播已发送");
 }
